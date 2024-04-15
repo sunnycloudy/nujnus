@@ -1,0 +1,53 @@
+# Vagrant配置版本
+Vagrant.configure("2") do |config|
+  # 设置虚拟机使用的box名称，这个名称是动态生成的
+  config.vm.box = "generic_centos8"
+
+  # 主机名
+  config.vm.hostname = "{{host_name}}"
+
+
+  # 配置端口转发，将宿主机的一个端口转发到虚拟机的端口
+  # guest是虚拟机内部的端口，host是宿主机上的端口
+  #config.vm.network "forwarded_port", guest: 22, host: {{ ssh_forward_port }}
+
+  {% for mapping in port_mappings %}
+  #config.vm.network "forwarded_port", guest: {{ mapping.base_port }}, host: {{ mapping.forward_port }}
+  {% endfor %} 
+
+  config.vm.provision "shell", inline: <<-SHELL
+          echo "root:123" | chpasswd
+          sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+          sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+          sudo systemctl restart sshd
+          SHELL
+
+  # 配置虚拟机的私有网络，设置nat模式下的静态IP
+  #config.vm.network "private_network", ip: "{{ vagrant_private_ip }}"
+
+  # 配置虚拟机的私有网络，设置bridge模式下的静态IP
+  config.vm.network "public_network", bridge: "{{ netdev }}", ip: "{{ vagrant_public_ip }}"
+
+  # 配置VirtualBox提供者的特定设置
+  config.vm.provider "virtualbox" do |vb|
+    # M为单位
+    vb.memory = {{memory}}
+    vb.cpus = {{cpu}}
+
+    # 定义硬盘文件路径
+    disk_path = "{{disk_path}}"
+
+    # 检查硬盘文件是否存在，不存在则创建
+    unless File.exist?(disk_path)
+      # M为单位 xG = x * 1024
+      vb.customize ['createhd', '--filename', 'disk.vdi', '--size', {{disk}} * 1024 ]
+    end 
+
+    # 无论硬盘文件是否新创建，都执行挂载操作
+    vb.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 1, '--device', 0, '--type', 'hdd', '--medium', disk_path]
+
+  end
+
+  # 其他配置项可以在这里添加...
+end
+

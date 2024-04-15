@@ -1,0 +1,14 @@
+- name: 循环遍历vm配置信息, 用每个vm信息重启一个vagrant虚拟机
+  hosts: provider
+  tasks:
+    - name: 重启vagrant虚拟机
+      include_tasks: ansible_framework/tasks/reload_vagrant_instance.yml
+      loop: "{{ vagrants }}"
+      loop_control:
+        index_var: "idx"
+
+#    - name: 重启docker容器
+#      include_tasks: ansible_framework/tasks/reload_docker_container.yml
+#      loop: "{{ dockers }}"
+#      loop_control:
+#        index_var: "idx"

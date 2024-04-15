@@ -1,0 +1,42 @@
+---
+#端口号从1024到49151被称为“Registered Ports”（注册端口），这些端口可以被应用程序或协议注册使用，但通常不属于众所周知的端口。
+#端口号从49152到65535被称为“Dynamic or Private Ports”（动态或私有端口），这些端口通常用于临时连接和动态分配，例如在网络通信中的临时端口。
+- name: 计算IP地址、端口号和box名称
+  set_fact:
+    current_ip: "{{ item.ip }}"
+    vagrant_base_path: "{{ item.vagrant_base_path }}/{{item.name}}"
+
+- name: 为节点 {{ item.name }} 为IP地址 {{ current_ip }} 创建目录
+  ansible.builtin.file:
+    path: "{{vagrant_base_path}}"
+    state: directory
+    mode: "0755"
+
+- name: 将Vagrantfile模板复制到新创建的目录
+  ansible.builtin.template:
+    src: ../templates/Vagrantfile.template
+    dest: "{{ vagrant_base_path }}/Vagrantfile"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  vars:
+    vagrant_ip: "{{ item.ip }}"
+    netdev: "{{ item.netdev }}"
+    ssh_forward_port: "{{ item.ssh_port }}"
+    #port_mappings: "{{item.port_mappings}}"
+    host_name: "{{item.name}}"
+    cpu: "{{item.cpu}}"
+    memory: "{{item.memory}}"
+    disk: "{{item.disk | default('') }}"
+    disk_path: "{{vagrant_base_path}}/disk.vdi"
+    username: "{{item.username}}"
+    password: "{{item.password | default('')}}"
+    sshkey: "{{item.sshkey | default('')}}"
+    box_name: "{{item.box_name}}"
+
+- name: 在远程服务器上启动Vagrant
+  ansible.builtin.shell: |
+    cd {{ vagrant_base_path }}
+    vagrant up --provider=virtualbox --provision
+  args:
+    executable: /bin/bash
